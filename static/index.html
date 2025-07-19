@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Careers Page Scraper</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            background: linear-gradient(120deg, #f0f4f8 0%, #e9e9ff 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 540px;
+            margin: 3rem auto;
+            background: #fff;
+            padding: 2.5rem 2rem 2rem 2rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px #0002;
+        }
+        h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            letter-spacing: 1px;
+        }
+        label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+        input[type=url] {
+            width: 100%;
+            padding: 0.7rem;
+            margin-bottom: 1.2rem;
+            border: 1px solid #bdbdbd;
+            border-radius: 6px;
+            font-size: 1rem;
+            background: #f7f7fa;
+            transition: border 0.2s;
+        }
+        input[type=url]:focus {
+            border: 1.5px solid #6c63ff;
+            outline: none;
+        }
+        button {
+            padding: 0.7rem 2.2rem;
+            border: none;
+            background: linear-gradient(90deg, #6c63ff 0%, #48c6ef 100%);
+            color: #fff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1rem;
+            font-weight: 600;
+            box-shadow: 0 2px 8px #6c63ff22;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        button:disabled {
+            background: #bdbdbd;
+            cursor: not-allowed;
+        }
+        .results {
+            margin-top: 2.5rem;
+        }
+        .job {
+            padding: 0.7rem 0;
+            border-bottom: 1px solid #eee;
+            font-size: 1.05rem;
+        }
+        .error {
+            color: #e74c3c;
+            margin-top: 1rem;
+            text-align: center;
+        }
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 2rem;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #6c63ff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success {
+            color: #27ae60;
+            font-weight: 500;
+            margin-top: 1.5rem;
+            text-align: center;
+        }
+        .download-link {
+            display: block;
+            margin: 1rem auto 0 auto;
+            text-align: center;
+            font-size: 1.1rem;
+            color: #6c63ff;
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Careers Page Scraper</h2>
+        <form id="scrape-form">
+            <label for="url">Paste the careers page URL:</label>
+            <input type="url" id="url" name="url" required placeholder="https://company.com/careers">
+            <button type="submit">Scrape Jobs</button>
+        </form>
+        <div class="error" id="error"></div>
+        <div class="loading" id="loading" style="display:none;">
+            <div class="spinner"></div>
+            <div>Scraping in progress...</div>
+        </div>
+        <div class="success" id="success" style="display:none;"></div>
+        <div class="results" id="results"></div>
+    </div>
+    <script>
+        const form = document.getElementById('scrape-form');
+        const resultsDiv = document.getElementById('results');
+        const errorDiv = document.getElementById('error');
+        const loadingDiv = document.getElementById('loading');
+        const successDiv = document.getElementById('success');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            resultsDiv.innerHTML = '';
+            errorDiv.textContent = '';
+            successDiv.style.display = 'none';
+            loadingDiv.style.display = 'flex';
+            const url = document.getElementById('url').value;
+            form.querySelector('button').disabled = true;
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                loadingDiv.style.display = 'none';
+                if (!response.ok) throw new Error('Failed to scrape.');
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                if (data.jobs && data.jobs.length > 0) {
+                    resultsDiv.innerHTML = '<h3>Job Listings:</h3>' +
+                        data.jobs.map(job => {
+                            const title = job.Job || job.title || 'No Title';
+                            const location = job.Location || job.location || '';
+                            const desc = job.Description || job.description || '';
+                            let html = `<div class="job"><strong>${title}</strong>`;
+                            if (location) html += ` <span style='color:#555;'>(${location})</span>`;
+                            if (desc) html += `<br/><span>${desc}</span>`;
+                            if (job.url) html += `<br/><a href="${job.url}" target="_blank">${job.url}</a>`;
+                            html += '</div>';
+                            return html;
+                        }).join('');
+                    successDiv.innerHTML = 'Excel file is ready! <a class="download-link" href="/xl_files/job.xlsx" download>Download Excel</a>';
+                    successDiv.style.display = 'block';
+                } else {
+                    resultsDiv.innerHTML = '<p>No jobs found.</p>';
+                }
+            } catch (err) {
+                loadingDiv.style.display = 'none';
+                errorDiv.textContent = err.message;
+            } finally {
+                form.querySelector('button').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html> 
